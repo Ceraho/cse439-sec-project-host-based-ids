@@ -6,9 +6,6 @@ import filecmp
 from collections import Counter
 
 
-password = "SECURITY IS IMPORTANT 439 +-*/"
-
-
 def edit_some_file(filename):
     print(f"press 1 to edit {filename} file (edited file will be modified in an unintended way,"
           " causing conflicts to test IDS functionalities)")
@@ -82,11 +79,19 @@ def take_snapshot(root_path):
     print("\nSNAPSHOT OPERATION STARTED...")
     list_to_text = list(hash_all_files(root_path))
 
-    open_file = open("Snapshots/snapshot.txt", 'wb+')
-    pickle.dump(list_to_text, open_file)
-    open_file.close()
+    try:
+        open_file = open("Snapshots/snapshot.txt", 'wb+')
+        pickle.dump(list_to_text, open_file)
+        open_file.close()
+    except FileNotFoundError:
+        print("Could not find Snapshots directory, creating one now.")
+        os.mkdir("Snapshots")
+        open_file = open("Snapshots/snapshot.txt", 'wb+')
+        pickle.dump(list_to_text, open_file)
+        open_file.close()
 
-    # password = input("Password: ")
+    password = input("Password: ")
+
     AES.encrypt(AES.getKey(password), "Snapshots/snapshot.txt")
 
     print("\nSNAPSHOT SAVED AND ENCRYPTED.\n")
@@ -95,16 +100,19 @@ def take_snapshot(root_path):
 def compare_to_latest_snapshot(root_path):
     print("\nCOMPARISON OPERATION HAS BEEN STARTED...\n")
 
-    # password = input("Password: ")
+    password = input("Password: ")
+
     try:
         AES.decrypt(AES.getKey(password), "Snapshots/(enc)snapshot.txt")
-    except:
-        print("Can't find encrypted snapshot file!")
+    except FileNotFoundError:
+        print("Can't find encrypted snapshot file, exiting comparison process.")
+        return
 
     check_if_modified = filecmp.cmp("Snapshots/snapshot.txt", "Snapshots/(dec)snapshot.txt", shallow=False)
+    os.remove("Snapshots/(dec)snapshot.txt")
 
     if not check_if_modified:
-        print("WARNING: THE SNAPSHOT FILES HAS BEEN MODIFIED BY AN OUTSOURCE!")
+        print("WARNING: THE SNAPSHOT FILE HAS BEEN MODIFIED BY AN OUT-SOURCE, PLEASE CONTROL THE \"snapshot.txt\"!")
         return
 
     try:
@@ -123,7 +131,11 @@ def compare_to_latest_snapshot(root_path):
     if last_checkpoint_list == current_hash_list:
         print("\nIt all seems fine, no modifications since the checkpoint.")
     else:
-        print("\nWARNING: MODIFIED FILES DETECTED IN THE DIRECTORY!")
+        print("\nWARNING: MODIFIED FILES DETECTED IN THE DIRECTORY!:")
+
+        for cur_element in current_hash_list:
+            if cur_element not in last_checkpoint_list:
+                print(cur_element[1])
 
 
 # This is where we execute and demonstrate our IDS' functionalities.
